@@ -16,53 +16,6 @@ import os.path
 # TODO Add an add example button
 
 ###########################################################################
-# Method: _getExample                                                     #
-###########################################################################
-# This method grabs example using the selenium web driver                 #
-###########################################################################
-def _getExample(parser, word, f=None, numberOfExamples=3):
-
-    # Use selenium with beautiful soup to get the text from each of the examples
-    browser.get("http://www.spanishdict.com/examples/" + word)
-    html_source = browser.page_source
-    soup = BeautifulSoup(html_source, 'html5lib')
-
-    parser.printLine("\n")
-
-    strings = []
-
-"""
-    x = 1
-    for example in soup.findAll("div", {"class": "megaexamples-pair"}):
-        if x < numberOfExamples+1:
-            print("---Example " + str(x) + " ---")
-            print("Spanish: " + example.contents[0].text)
-            print("English: " + example.contents[1].text)
-            print("-------------")
-            parser.printLine("\n---Example " + str(x) + " ---\n")
-            strings.append("Spanish: " + example.contents[0].text + '\n')
-            strings.append("English: " + example.contents[1].text + '\n')
-            parser.printLine(strings[-2])
-            parser.printLine(strings[-1])
-            parser.printLine("-------------\n")
-        else:
-            break
-        x += 1
-
-    # This is only used by the write word function. It just checks if a file has been passed in
-    if f:
-        examples = ""
-        for string in strings:
-            examples += string.replace("\n", "<br/>")
-
-        f.write(parser.getSpanishWordBox().replace(";", ":").strip() + ";" + parser.getMeaning().replace("\n", "<br/>").strip(
-            '<br/>').replace(";", ":") + examples.strip(
-            '<br/>').replace(";", ":") + ";" + ";" + parser.getPartofSpeech().replace(";", ":") + "\n")
-
-    return strings
-"""
-
-###########################################################################
 # Method: _destroy_right_pane                                             #
 ###########################################################################
 # This method's only purpose is to destroy the right pane of the window   #
@@ -174,28 +127,28 @@ class SPAHTMLParser(HTMLParser):
             self.textBox.config(yscrollcommand=scrollbar.set)
 
         def add_notebook(self, pane, width, height):
-            nb = ttk.Notebook(pane, height=height, width=width)
+            self.nb = ttk.Notebook(pane, height=height, width=width)
 
             # adding Frames as pages for the ttk.Notebook
             # first page, which would get widgets gridded into it
 
-            page1 = ttk.Frame(nb)
-            page2 = ttk.Frame(nb)
-            page3 = ttk.Frame(nb)
+            page1 = ttk.Frame(self.nb)
+            page2 = ttk.Frame(self.nb)
+            page3 = ttk.Frame(self.nb)
 
-            spanishDict = ScrolledText(page1)
-            dle = ScrolledText(page2)
-            wordreference = ScrolledText(page3)
+            self.spanishDict = ScrolledText(page1)
+            self.dle = ScrolledText(page2)
+            self.wordreference = ScrolledText(page3)
 
-            spanishDict.pack(expand=1, fill="both")
-            dle.pack(expand=1, fill="both")
-            wordreference.pack(expand=1, fill="both")
+            self.spanishDict.pack(expand=1, fill="both")
+            self.dle.pack(expand=1, fill="both")
+            self.wordreference.pack(expand=1, fill="both")
 
-            nb.add(page1, text='SpanishDict')
-            nb.add(page2, text='DLE')
-            nb.add(page3, text='WordReference')
+            self.nb.add(page1, text='SpanishDict')
+            self.nb.add(page2, text='DLE')
+            self.nb.add(page3, text='WordReference')
 
-            nb.pack(side=LEFT, fill="both")
+            self.nb.pack(side=LEFT, fill="both")
 
         def _addSideBars(self):
             self.sideBars = True # This makes it so that the sidebars get populated with the correct wording
@@ -278,7 +231,7 @@ class SPAHTMLParser(HTMLParser):
             self.partOfSpeech.delete('1.0', END)
             self.spanishWord = ''
 
-        # Marks the word in anki
+        # Marks the word in anki1
         def markWord(self):
             self.partOfSpeech.insert(END, "marked ")
 
@@ -302,6 +255,7 @@ class SPAHTMLParser(HTMLParser):
                 if tag is not None:
                     for string in tag.stripped_strings:
                         if len(string) > 2:
+                            print(repr(string).replace('\'', '') + '\n')
                             self.printLine(repr(string).replace('\'', '') + '\n', "spanishDict")
 
                     self.printLine("\n\n-------------------------- END DICTIONARY --------------------------\n\n", "spanishDict")
@@ -319,6 +273,28 @@ class SPAHTMLParser(HTMLParser):
             first = _processTag(soup.find('div', {'class': 'dictionary-entry dictionary-neoharrap'}), first)
 
             first = _processTag(soup.find('div', {'class': 'dictionary-entry dictionary-collins'}), first)
+
+        def processWordReference(self, html, quickLook=False):
+            soup = BeautifulSoup(html, 'html.parser')
+
+            word = soup.find("h1", {"class": "source-text"}).string.strip()
+
+            def _processTag(tag, first):
+                if tag is not None:
+                    for string in tag.stripped_strings:
+                        if len(string) > 2:
+                            print(repr(string).replace('\'', '') + '\n')
+                            self.printLine(repr(string).replace('\'', '') + '\n', "wordreference")
+
+                    tag = None
+
+                    return False
+
+                return True
+
+            first = True
+
+            first = _processTag(soup.find("div", {"class": "WRD"}))
 
 def getWords():
 
