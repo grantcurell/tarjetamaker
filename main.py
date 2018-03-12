@@ -8,6 +8,7 @@ from unidecode import unidecode # You can install this library with pip install 
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import os.path
+import json
 
 # TODO Have it save after each word.
 # TODO Add backup feature
@@ -251,7 +252,7 @@ class SPAHTMLParser(HTMLParser):
                 self.setSpanishWord(word.lower())
                 self.setSpanishWordBox(word)
 
-            def _processTag(tag, first):
+            def _processTag(tag):
                 if tag is not None:
                     for string in tag.stripped_strings:
                         if len(string) > 2:
@@ -260,41 +261,43 @@ class SPAHTMLParser(HTMLParser):
 
                     self.printLine("\n\n-------------------------- END DICTIONARY --------------------------\n\n", "spanishDict")
 
-                    tag = None
-
                     return False
 
                 return True
 
-            first = True
+            _processTag(soup.find("div", {"class": "dictionary-entry dictionary-neodict"}))
 
-            first = _processTag(soup.find("div", {"class": "dictionary-entry dictionary-neodict"}), first)
+            _processTag(soup.find('div', {'class': 'dictionary-entry dictionary-neoharrap'}))
 
-            first = _processTag(soup.find('div', {'class': 'dictionary-entry dictionary-neoharrap'}), first)
+            _processTag(soup.find('div', {'class': 'dictionary-entry dictionary-collins'}))
 
-            first = _processTag(soup.find('div', {'class': 'dictionary-entry dictionary-collins'}), first)
+        def processWordReference(self, html):
 
-        def processWordReference(self, html, quickLook=False):
             soup = BeautifulSoup(html, 'html.parser')
 
-            word = soup.find("h1", {"class": "source-text"}).string.strip()
-
-            def _processTag(tag, first):
+            def _processTag(tag):
                 if tag is not None:
                     for string in tag.stripped_strings:
                         if len(string) > 2:
                             print(repr(string).replace('\'', '') + '\n')
                             self.printLine(repr(string).replace('\'', '') + '\n', "wordreference")
 
-                    tag = None
+            _processTag(soup.find('ol', {'class': 'entry'}))
 
-                    return False
+        def processDLE(self, html):
 
-                return True
+            soup = BeautifulSoup(html, 'html.parser')
 
-            first = True
+            def _processTag(tag):
+                if tag is not None:
+                    for string in tag.stripped_strings:
+                        if len(string) > 2:
+                            print(repr(string).replace('\'', '') + '\n')
+                            self.printLine(repr(string).replace('\'', '') + '\n', "dle")
 
-            first = _processTag(soup.find("div", {"class": "WRD"}))
+            for tag in soup.find_all("p", ["j", "j2", "k6", "m"]):
+                print(tag.text)
+                self.printLine(tag.text, "dle")
 
 def getWords():
 
@@ -308,9 +311,6 @@ def getWords():
     parser._addSideBars()
     global exampleWord
     exampleWord = ''
-
-    def _activateCheckbox():
-        checkBox.includeExample = not checkBox.includeExample
 
     def nextWord():
 
@@ -332,26 +332,19 @@ def getWords():
             global exampleWord
             exampleWord = word
 
+            # SpanishDict
             print("http://www.spanishdict.com/translate/" + list[-1].replace(" ", "%20"))
             url_string = unidecode("http://www.spanishdict.com/translate/" + word)
-            #html =
-
-            #parser.feed(html)
             parser.processSpanishDict(urlopen(url_string).read().decode('utf-8'))
 
-            #parser.printLine("http://www.spanishdict.com/translate/" + list[-1])
+            # Word Reference
+            browser.get(unidecode("http://www.wordreference.com/definicion/" + word))
+            parser.processWordReference(browser.page_source)
 
-            # TODO THIS DOES NOT WORK BECAUSE IT GUESSES FOR NOUNS (TRY VERJA)
-            #url_string = unidecode("http://www.spanishdict.com/conjugate/" + quote(list[-1].replace(" ", "%20")))
-            #html = urlopen(url_string).read().decode('utf-8')
-            #if "<span class=\"conj-irregular\">" in html:
-            #    parser.markWord()
+            # DLE
+            browser.get(unidecode("http://dle.rae.es/" + word))
+            parser.processDLE(browser.page_source)
 
-            if checkBox.includeExample:
-                strings = _getExample(parser, word, None, 100).replace("<br/>", '\n')
-
-                if len(strings) > 1:
-                    parser.addToMeaning(strings[0])
         else:
             parser.printLine("No more words in list!", "spanishDict")
 
@@ -359,11 +352,8 @@ def getWords():
         with open('new_cards', 'a+', encoding="utf-8") as f:
             # You need the <br/>s in anki for newlines. The strip makes sure there isn't one randomly trailing
             if not parser.meaningIsEmpty():
-                if not checkBox.includeExample:
-                    f.write(parser.getSpanishWordBox().replace("\n", "<br/>").strip('<br/>').replace(";", ":") + ";" + parser.getMeaning().replace("\n", "<br/>").strip('<br/>').replace(";", ":") + ";" + ";" + parser.getPartofSpeech().replace(";", ":") + "\n")
+                f.write(parser.getSpanishWordBox().replace("\n", "<br/>").strip('<br/>').replace(";", ":") + ";" + parser.getMeaning().replace("\n", "<br/>").strip('<br/>').replace(";", ":") + ";" + ";" + parser.getPartofSpeech().replace(";", ":") + "\n")
                 # This begins the section which handles adding cards if examples are included
-                else:
-                    _getExample(parser, quote(list[-1].replace(" ", "%20")), f, 1)
             list.pop()
             f.close()
             nextWord()
@@ -382,18 +372,7 @@ def getWords():
     ttk.Button(bottom_pane, text='Skip Word\n(Remove From List)', command=skipWord).grid(row=5, column=0, padx=7, pady=7)
     ttk.Button(bottom_pane, text='Write All Words', command=_writeAll).grid(row=6, column=0, padx=7, pady=7)
 
-    # This code is for adding a checkbox to ask if you want to include an example
-    includeExample = BooleanVar
-    checkBox = ttk.Checkbutton(bottom_pane, text="Add Example", variable=includeExample, onvalue=True, offvalue=False, command=_activateCheckbox)
-    checkBox.includeExample = False
-    checkBox.grid(row=7, column=0, padx=7, pady=7)
-
-    ttk.Button(bottom_pane, text='Get Example', command= lambda: _getExample(parser, exampleWord, None, 100)).grid(row=8, column=0, padx=7, pady=7)
-
 def quickLookup():
-
-    def _activateCheckbox():
-        checkBox.includeExample = not checkBox.includeExample
 
     def _lookup():
 
@@ -403,9 +382,6 @@ def quickLookup():
         html = urlopen("http://www.spanishdict.com/translate/" + unidecode(entry.get().replace(" ", "%20"))).read().decode('utf-8')
 
         parser.processSpanishDict(html, True)
-
-        if checkBox.includeExample:
-            _getExample(parser, entry.get(), None, 100)
 
     def _add():
 
@@ -421,12 +397,6 @@ def quickLookup():
     entry.grid(row=1, column=0)
     ttk.Button(bottom_pane, text="Lookup", command=_lookup).grid(row=2, column=0, padx=7, pady=7)
     ttk.Button(bottom_pane, text="Add to list", command=_add).grid(row=3, column=0, padx=7, pady=7)
-
-    # This code is for adding a checkbox to ask if you want to include an example
-    includeExample = BooleanVar
-    checkBox = ttk.Checkbutton(bottom_pane, text="Add Example", variable=includeExample, onvalue=True, offvalue=False, command=_activateCheckbox)
-    checkBox.includeExample = False
-    checkBox.grid(row=4, column=0, padx=7, pady=7)
 
 Tk().title("Tarjeta Maker - By Grant Curell")
 
