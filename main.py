@@ -8,7 +8,6 @@ from unidecode import unidecode # You can install this library with pip install 
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import os.path
-import json
 
 # TODO Have it save after each word.
 # TODO Add backup feature
