@@ -313,7 +313,6 @@ def getWords():
 
     def nextWord():
 
-        #parser.clearTextBox("all")
         parser.clearTextBoxesRight()
         parser.resetFirst()
 
@@ -343,6 +342,10 @@ def getWords():
             # DLE
             browser.get(unidecode("http://dle.rae.es/" + word))
             parser.processDLE(browser.page_source)
+
+            # Google Chrome
+            browser.get(unidecode('https://www.google.com/search?tbm=isch&q=' + word))
+
 
         else:
             parser.printLine("No more words in list!", "spanishDict")
@@ -375,12 +378,9 @@ def quickLookup():
 
     def _lookup():
 
-        #parser.clearTextBox("all")
-
-        # You need the unidecode function to strip out unicode characters. EX: colección se convirte en coleccion
-        html = urlopen("http://www.spanishdict.com/translate/" + unidecode(entry.get().replace(" ", "%20"))).read().decode('utf-8')
-
-        parser.processSpanishDict(html, True)
+        print("http://www.spanishdict.com/translate/" + entry.get().replace(" ", "%20"))
+        url_string = unidecode("http://www.spanishdict.com/translate/" + entry.get().replace(" ", "%20"))
+        parser.processSpanishDict(urlopen(url_string).read().decode('utf-8'), True)
 
     def _add():
 
