@@ -23,7 +23,7 @@
    <item>
     <widget class="QTabWidget" name="tab_object_main">
      <property name="currentIndex">
-      <number>2</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="tab_import_words">
       <attribute name="title">
