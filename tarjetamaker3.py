@@ -1,8 +1,8 @@
 
 from PyQt4 import QtCore, QtGui
-
 from tarjetaui.tarjeta_ui import Ui_tarjeta_ui
 import sys
+
 
 #class Ui_tarjeta_ui(Ui_tarjeta_ui):
 

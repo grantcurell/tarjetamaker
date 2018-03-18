@@ -9,6 +9,15 @@
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import QObject
 from PyQt4.QtCore import SIGNAL
+import os
+
+from urllib.request import urlopen
+from urllib.parse import quote
+from html.parser import HTMLParser
+from unidecode import unidecode # You can install this library with pip install unidecode
+from bs4 import BeautifulSoup
+from selenium import webdriver
+import os.path
 
 try:
     _fromUtf8 = QtCore.QString.fromUtf8
@@ -24,9 +33,17 @@ except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
 
+
+
 class Ui_tarjeta_ui(object):
 
     list = []
+    browser = webdriver
+
+    def __init__(self):
+        chop = webdriver.ChromeOptions()
+        chop.add_extension('AdBlock_v3.11.2.crx')
+        self.browser = webdriver.Chrome(chrome_options=chop)
 
     def setupUi(self, tarjeta_ui):
         tarjeta_ui.setObjectName(_fromUtf8("tarjeta_ui"))
@@ -101,13 +118,13 @@ class Ui_tarjeta_ui(object):
         self.gridLayout_5.addWidget(self.text_browser_wordreference, 0, 0, 1, 1)
         self.tabWidget_2.addTab(self.tab_wordreference, _fromUtf8(""))
         self.gridLayout_2.addWidget(self.tabWidget_2, 1, 0, 3, 1)
+        self.text_edit_card_front = QtGui.QTextEdit(self.tab_create_cards)
+        self.text_edit_card_front.setObjectName(_fromUtf8("text_edit_card_back"))
+        self.gridLayout_2.addWidget(self.text_edit_card_front, 1, 1, 1, 1)
         self.text_edit_card_back = QtGui.QTextEdit(self.tab_create_cards)
-        self.text_edit_card_back.setObjectName(_fromUtf8("text_edit_card_back"))
-        self.gridLayout_2.addWidget(self.text_edit_card_back, 1, 1, 1, 1)
-        self.textEdit_3 = QtGui.QTextEdit(self.tab_create_cards)
-        self.textEdit_3.setLineWrapMode(QtGui.QTextEdit.WidgetWidth)
-        self.textEdit_3.setObjectName(_fromUtf8("textEdit_3"))
-        self.gridLayout_2.addWidget(self.textEdit_3, 3, 1, 1, 1)
+        self.text_edit_card_back.setLineWrapMode(QtGui.QTextEdit.WidgetWidth)
+        self.text_edit_card_back.setObjectName(_fromUtf8("textEdit_3"))
+        self.gridLayout_2.addWidget(self.text_edit_card_back, 3, 1, 1, 1)
         self.push_button_write_word = QtGui.QPushButton(self.tab_create_cards)
         self.push_button_write_word.setObjectName(_fromUtf8("push_button_write_word"))
         self.gridLayout_2.addWidget(self.push_button_write_word, 5, 1, 1, 1)
@@ -149,17 +166,140 @@ class Ui_tarjeta_ui(object):
         self.tabWidget_2.setCurrentIndex(2)
         QtCore.QMetaObject.connectSlotsByName(tarjeta_ui)
 
-        def _save_words(self):
-            del list[:]
-            for word in self.text_edit_import_words.toPlainText():
-                list.append(word)
-
-            with open('word_list', 'w+', encoding="utf-8") as f:
-                for word in list:
-                    f.write(word + '\n')
-                f.close()
-
         QObject.connect(self.push_button_save_words, SIGNAL("clicked()"), self._save_words)
+        QObject.connect(self.push_button_next_word, SIGNAL("clicked()"), self._create_card)
+        QObject.connect(self.push_button_write_word, SIGNAL("clicked()"), self._write_word)
+        QObject.connect(self.push_button_lookup, SIGNAL("clicked()"), self._quick_lookup)
+        QObject.connect(self.push_button_add_to_list, SIGNAL("clicked()"), self._add_to_list)
+        QObject.connect(self.push_button_skip_word, SIGNAL("clicked()"), self._skip_word)
+        QObject.connect(self.push_button_skip_word, SIGNAL("clicked()"), self._skip_word)
+
+        ###########################################
+        # Import cards                            #
+        ###########################################
+        if len(self.list) != 0:
+            for word in self.list:
+                self.text_edit_import_words.insertPlainText(word + '\n')
+        else:
+            if os.path.isfile("word_list"):
+                with open("word_list", encoding="utf-8") as f:
+                    for word in f.readlines():
+                        word = word.strip()
+
+                        # This try except block eliminates blank spaces that shouldn't be there
+                        try:
+                            if word[0].isalpha():
+                                self.list.append(word)
+                                self.text_edit_import_words.insertPlainText(word + "\n")
+                        except IndexError:
+                            pass
+            else:
+                self.text_edit_import_words.insertPlainText("Add words here. One on each line.")
+
+    # Not auto-generated functions
+    def _save_words(self):
+        del self.list[:]
+        for word in self.text_edit_import_words.toPlainText():
+            self.list.append(word)
+
+        with open('word_list', 'w+', encoding="utf-8") as f:
+            for word in self.list:
+                f.write(word + '\n')
+            f.close()
+
+    def create_cards_printline(self, text, box):
+
+        if box == "spanishDict":
+            self.text_browser_spanish_dict.insertPlainText(text)
+        elif box == "dle":
+            self.text_browser_dle.insertPlainText(text)
+        elif box == "wordreference":
+            self.text_browser_wordreference.insertPlainText(text)
+        else:
+            print("WARNING: Nothing matched")
+
+    def quick_lookup_printline(self, text):
+        self.text_browser_quick_lookup.insertPlainText(text)
+
+    def create_cards_printline_front(self, text):
+        self.text_edit_card_front.insertPlainText(text)
+
+    def _clear_create_card_text_boxes(self):
+
+        self.text_browser_spanish_dict.clear()
+        self.text_browser_dle.clear()
+        self.text_browser_wordreference.clear()
+        self.text_edit_card_front.clear()
+        self.text_edit_card_back.clear()
+
+    def _create_card(self):
+
+        self._clear_create_card_text_boxes()
+
+        parser = SPAHTMLParser(self)
+
+        if len(self.list) > 0:
+
+            # Don't read the empty elements - make sure they are skipped and removed
+            try:
+                while self.list[-1].strip() == "":
+                    self.list.pop()
+            except IndexError:
+                pass
+
+            word = quote(self.list[-1].replace(" ", "%20"))
+
+            # SpanishDict
+            print("http://www.spanishdict.com/translate/" + self.list[-1].replace(" ", "%20"))
+            url_string = unidecode("http://www.spanishdict.com/translate/" + word)
+            parser.process_spanishdict(urlopen(url_string).read().decode('utf-8'))
+
+            # Word Reference
+            self.browser.get(unidecode("http://www.wordreference.com/definicion/" + word))
+            parser.process_wordreference(self.browser.page_source)
+
+            # DLE
+            self.browser.get(unidecode("http://dle.rae.es/" + word))
+            parser.process_dle(self.browser.page_source)
+
+            # Google Chrome
+            self.browser.get(unidecode('https://www.google.com/search?tbm=isch&q=' + word))
+
+
+        else:
+            parser.printLine("No more words in list!", "spanishDict")
+
+    def _skip_word(self):
+        self.list.pop()
+
+    def _write_word(self):
+        with open('new_cards', 'a+', encoding="utf-8") as f:
+            # You need the <br/>s in anki for newlines. The strip makes sure there isn't one randomly trailing
+            f.write(self.text_edit_card_front.toPlainText().replace("\n", "<br/>").strip('<br/>').replace(";", ":") + ";" + self.text_edit_card_back.toPlainText().replace("\n", "<br/>").strip('<br/>').replace(";", ":") + ";" + ";" + "" + "\n")
+            # This begins the section which handles adding cards if examples are included
+            self.list.pop()
+            f.close()
+            self._create_card()
+
+    ###########################################
+    # Quick Lookup                            #
+    ###########################################
+
+    def _clear_quick_lookup_text_boxes(self):
+        self.text_browser_quick_lookup.clear()
+
+    def _quick_lookup(self):
+
+        parser = SPAHTMLParser(self)
+
+        print("http://www.spanishdict.com/translate/" + self.inline_edit_quicklook.text().replace(" ", "%20"))
+        url_string = unidecode("http://www.spanishdict.com/translate/" + self.inline_edit_quicklook.text().replace(" ", "%20"))
+        parser.process_spanishdict(urlopen(url_string).read().decode('utf-8'), True)
+
+    def _add_to_list(self):
+
+        self.list.append(self.inline_edit_quicklook.text())
+        self.text_edit_import_words.insertPlainText(self.inline_edit_quicklook.text() + "\n")
 
     def retranslateUi(self, tarjeta_ui):
         tarjeta_ui.setWindowTitle(_translate("tarjeta_ui", "Form", None))
@@ -180,13 +320,74 @@ class Ui_tarjeta_ui(object):
         self.push_button_add_to_list.setText(_translate("tarjeta_ui", "Add To List", None))
         self.tab_object_main.setTabText(self.tab_object_main.indexOf(self.tab_quick_lookup), _translate("tarjeta_ui", "Quick Lookup", None))
 
+class SPAHTMLParser(HTMLParser):
 
-if __name__ == "__main__":
-    import sys
-    app = QtGui.QApplication(sys.argv)
-    tarjeta_ui = QtGui.QWidget()
-    ui = Ui_tarjeta_ui()
-    ui.setupUi(tarjeta_ui)
-    tarjeta_ui.show()
-    sys.exit(app.exec_())
+    x = 0
+    y = 0
 
+    tarjeta_ui = Ui_tarjeta_ui
+
+    def __init__(self, tarjeta_ui):
+        self.tarjeta_ui = tarjeta_ui
+
+    def process_spanishdict(self, html, quick_look=False):
+        soup = BeautifulSoup(html, 'html.parser')
+
+        word = soup.find("h1", {"class": "source-text"}).string.strip()
+
+        if not quick_look:
+            self.tarjeta_ui.create_cards_printline_front(word.lower())
+
+        def _processTag(tag):
+            if tag is not None:
+                for string in tag.stripped_strings:
+                    if len(string) > 2:
+                        print(repr(string).replace('\'', '') + '\n')
+
+                        if quick_look:
+                            self.tarjeta_ui.quick_lookup_printline(repr(string).replace('\'', '') + '\n')
+                        else:
+                            self.tarjeta_ui.create_cards_printline(repr(string).replace('\'', '') + '\n', "spanishDict")
+
+                if quick_look:
+                    self.tarjeta_ui.quick_lookup_printline("\n\n-------------------------- END DICTIONARY --------------------------\n\n")
+                else:
+                    self.tarjeta_ui.create_cards_printline("\n\n-------------------------- END DICTIONARY --------------------------\n\n", "spanishDict")
+
+                return False
+
+            return True
+
+        _processTag(soup.find("div", {"class": "dictionary-entry dictionary-neodict"}))
+
+        _processTag(soup.find('div', {'class': 'dictionary-entry dictionary-neoharrap'}))
+
+        _processTag(soup.find('div', {'class': 'dictionary-entry dictionary-collins'}))
+
+    def process_wordreference(self, html):
+
+        soup = BeautifulSoup(html, 'html.parser')
+
+        def _processTag(tag):
+            if tag is not None:
+                for string in tag.stripped_strings:
+                    if len(string) > 2:
+                        print(repr(string).replace('\'', '') + '\n')
+                        self.tarjeta_ui.create_cards_printline(repr(string).replace('\'', '') + '\n', "wordreference")
+
+        _processTag(soup.find('ol', {'class': 'entry'}))
+
+    def process_dle(self, html):
+
+        soup = BeautifulSoup(html, 'html.parser')
+
+        def _process_tag(tag):
+            if tag is not None:
+                for string in tag.stripped_strings:
+                    if len(string) > 2:
+                        print(repr(string).replace('\'', '') + '\n')
+                        self.tarjeta_ui.create_cards_printline(repr(string).replace('\'', '') + '\n', "dle")
+
+        for tag in soup.find_all("p", ["j", "j2", "k6", "m"]):
+            print(tag.text)
+            self.tarjeta_ui.create_cards_printline(tag.text + "\n", "dle")
