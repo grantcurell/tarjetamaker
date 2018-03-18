@@ -11,13 +11,14 @@ from __future__ import absolute_import
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import QObject
 from PyQt4.QtCore import SIGNAL
-import os
 from urllib2 import urlopen
 from urllib import quote
 from HTMLParser import HTMLParser
-from unidecode import unidecode # You can install this library with pip install unidecode
-from bs4 import BeautifulSoup
-from selenium import webdriver
+from .unidecode import unidecode
+from .bs4 import BeautifulSoup
+from .selenium import webdriver
+
+import os
 import os.path
 from io import open
 
