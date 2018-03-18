@@ -26,7 +26,7 @@ except ImportError: # < 2.6
 if not hasattr(json, 'dumps'):
     import simplejson as json
 
-from selenium.common.exceptions import NoSuchElementException
+from ...common.exceptions import NoSuchElementException
 
 LOGGER = logging.getLogger(__name__)
 

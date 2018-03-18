@@ -18,10 +18,10 @@ from command import Command
 from webelement import WebElement
 from remote_connection import RemoteConnection
 from errorhandler import ErrorHandler
-from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.alert import Alert
-from selenium.common.exceptions import WebDriverException
+from ...common.exceptions import WebDriverException
+from ..common.by import By
+from ..common.alert import Alert
+from ...common.exceptions import WebDriverException
 
 class WebDriver(object):
     """Controls a browser by sending commands to a remote server.

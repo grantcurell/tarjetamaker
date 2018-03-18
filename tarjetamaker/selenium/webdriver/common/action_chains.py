@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """The ActionChains implementation."""
-from selenium.webdriver.remote.command import Command
+from ..remote.command import Command
 
 class ActionChains(object):
     """Generate user actions.

@@ -19,8 +19,8 @@ from subprocess import PIPE
 import time
 import os
 import signal
-from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.common import utils
+from ...common.exceptions import WebDriverException
+from ..common import utils
 
 class Service(object):
     """ Object that manages the starting and stopping of the ChromeDriver """

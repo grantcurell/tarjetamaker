@@ -8,3 +8,5 @@ awesometts/
 AwesomeTTS\.py
 
 *.autosave
+
+aqt/

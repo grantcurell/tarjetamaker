@@ -15,12 +15,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from firefox.webdriver import WebDriver as Firefox
-from firefox.firefox_profile import FirefoxProfile
-from chrome.webdriver import WebDriver as Chrome
-from ie.webdriver import WebDriver as Ie
-from remote.webdriver import WebDriver as Remote
-from common.desired_capabilities import DesiredCapabilities
-from common.action_chains import ActionChains
+from .chrome.webdriver import WebDriver as Chrome
+from .remote.webdriver import WebDriver as Remote
+from .common.desired_capabilities import DesiredCapabilities
+from .common.action_chains import ActionChains
 
 __version__ = '2.7.0'
