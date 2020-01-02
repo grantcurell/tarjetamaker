@@ -10,3 +10,9 @@ AwesomeTTS\.py
 *.autosave
 
 aqt/
+
+env/
+
+.vscode/settings.json
+
+__pycache__/
